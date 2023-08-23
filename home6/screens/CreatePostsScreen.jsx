@@ -6,58 +6,87 @@ import {
   KeyboardAvoidingView,
   TouchableWithoutFeedback,
   Keyboard,
+  SafeAreaView,
   Platform,
-} from 'react-native';
-import { Text } from 'react-native';
-import { globalStyles } from '../globalStyles';
-import { Image } from 'react-native';
-import { CameraIcon, LocationIcon, Trash } from '../components/icons/Icons';
-import { useEffect, useState } from 'react';
-import { Camera } from 'expo-camera';
-import * as MediaLibrary from 'expo-media-library';
-import { useNavigation } from '@react-navigation/native';
-import { useDispatch } from 'react-redux';
-import { addPost } from '../redux/postSlice';
-import * as Location from 'expo-location';
+} from "react-native";
+import { Text } from "react-native";
+import { globalStyles } from "../globalStyles";
+import { Image } from "react-native";
+import { CameraIcon, LocationIcon, Trash } from "../components/icons/Icons";
+import { useEffect, useState } from "react";
+import { Camera } from "expo-camera";
+import * as MediaLibrary from "expo-media-library";
+import { useNavigation } from "@react-navigation/native";
+import { useDispatch } from "react-redux";
+import { addPost } from "../redux/postSlice";
+import * as Location from "expo-location";
+import { addPostFirebase } from "../servises/posts.services";
 
 export const CreatePostsScreen = () => {
   const dispatch = useDispatch();
   const navigation = useNavigation();
-  const [photoName, setPhotoName] = useState('');
-  const [locationName, setLocationName] = useState('');
+  const [photoName, setPhotoName] = useState("");
+  const [locationName, setLocationName] = useState("");
   const [isOpenKeyboard, setIsOpenKeyboard] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState(null);
+  const [hasMediaPermission, setHasMediaPermission] = useState(null);
   const [cameraRef, setCameraRef] = useState(null);
   const [type, setType] = useState(Camera.Constants.Type.back);
   const [photoUri, setPhotoUri] = useState(null);
   const [location, setLocation] = useState(null);
+  console.log(location);
 
   useEffect(() => {
     (async () => {
       const cameraPermission = await Camera.requestCameraPermissionsAsync();
-      setHasCameraPermission(cameraPermission.status === 'granted');
+      const mediaPermission = await MediaLibrary.requestPermissionsAsync();
+      setHasCameraPermission(cameraPermission.status === "granted");
+      setHasMediaPermission(mediaPermission.status === "granted");
     })();
   }, []);
 
   const handlePublishPost = () => {
     (async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        console.log('Permission to access location was denied');
+      if (status !== "granted") {
+        console.log("Permission to access location was denied");
       }
       let location = await Location.getCurrentPositionAsync({});
       const coords = {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
       };
-
       setLocation(coords);
-      console.log(coords);
+      try {
+        await addPostFirebase({
+          photoName,
+          locationName,
+          photoUri,
+          location: {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          },
+          commentsNumber: 0,
+        });
+
+
+      } catch (error) {
+        console.log(error);
+      }
     })();
-    dispatch(addPost({ photoName, locationName, photoUri, location }));
-    navigation.navigate('Home', { screen: 'Posts' });
-    setPhotoName('');
-    setLocationName('');
+
+    dispatch(
+      addPost({
+        photoName,
+        locationName,
+        photoUri,
+        location,
+        commentsNumber: 0,
+      })
+    );
+    navigation.navigate("Home", { screen: "Posts" });
+    setPhotoName("");
+    setLocationName("");
     setPhotoUri(null);
   };
   const takePicture = async () => {
@@ -69,14 +98,21 @@ export const CreatePostsScreen = () => {
   };
   if (hasCameraPermission === null) {
     return (
-      <View style={{ flex: 1, backgroundColor: 'white' }}>
-        <Text>Loading...</Text>
+      <View
+        style={[
+          globalStyles.container,
+          { justifyContent: "center", alignItems: "center" },
+        ]}
+      >
+        <Text style={{ fontFamily: "Roboto-Medium", fontSize: 22 }}>
+          Loading...
+        </Text>
       </View>
     );
   }
   if (!hasCameraPermission) {
     return (
-      <View style={{ flex: 1, backgroundColor: 'white' }}>
+      <View style={{ flex: 1, backgroundColor: "white" }}>
         <Text>No access to camera.</Text>
       </View>
     );
@@ -84,7 +120,7 @@ export const CreatePostsScreen = () => {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{
           flex: 1,
         }}
@@ -93,7 +129,7 @@ export const CreatePostsScreen = () => {
           style={[
             globalStyles.container,
             {
-              justifyContent: 'flex-end',
+              justifyContent: "flex-end",
               paddingBottom: isOpenKeyboard ? 55 : 34,
               paddingLeft: 16,
               paddingRight: 16,
@@ -114,9 +150,9 @@ export const CreatePostsScreen = () => {
                       width: 60,
                       height: 60,
                       borderRadius: 30,
-                      backgroundColor: 'white',
-                      justifyContent: 'center',
-                      alignItems: 'center',
+                      backgroundColor: "white",
+                      justifyContent: "center",
+                      alignItems: "center",
                     }}
                   >
                     <CameraIcon />
@@ -134,7 +170,7 @@ export const CreatePostsScreen = () => {
               <TextInput
                 style={[
                   styles.input,
-                  { height: 50, fontFamily: 'Roboto-Medium' },
+                  { height: 50, fontFamily: "Roboto-Medium" },
                 ]}
                 placeholder="Назва..."
                 onFocus={() => setIsOpenKeyboard(true)}
@@ -145,12 +181,12 @@ export const CreatePostsScreen = () => {
 
               <View
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
                   gap: 4,
                   borderBottomWidth: 1,
-                  borderColor: '#E8E8E8',
+                  borderColor: "#E8E8E8",
                   height: 50,
                   marginBottom: 32,
                 }}
@@ -163,7 +199,7 @@ export const CreatePostsScreen = () => {
                       flex: 1,
                       borderBottomWidth: 0,
                       marginBottom: 0,
-                      fontFamily: 'Roboto-Regular',
+                      fontFamily: "Roboto-Regular",
                     },
                   ]}
                   placeholder="Місцевість..."
@@ -189,13 +225,15 @@ export const CreatePostsScreen = () => {
           >
             <View
               style={{
+                // position: "absolute",
+                // bottom: 0,
                 width: 70,
                 height: 40,
                 borderRadius: 20,
-                backgroundColor: '#F6F6F6',
-                justifyContent: 'center',
-                alignItems: 'center',
-                alignSelf: 'center',
+                backgroundColor: "#F6F6F6",
+                justifyContent: "center",
+                alignItems: "center",
+                alignSelf: "center",
               }}
             >
               <Trash />
@@ -209,32 +247,32 @@ export const CreatePostsScreen = () => {
 
 const styles = StyleSheet.create({
   photoWrapper: {
-    with: '100%',
+    with: "100%",
     height: 240,
     borderWidth: 1,
-    borderColor: '#E8E8E8',
+    borderColor: "#E8E8E8",
     borderRadius: 8,
-    backgroundColor: '#F6F6F6',
+    backgroundColor: "#F6F6F6",
     marginBottom: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   text: {
-    fontFamily: 'Roboto-Regular',
+    fontFamily: "Roboto-Regular",
     fontSize: 16,
     lineHeight: 18.75,
-    color: '#BDBDBD',
+    color: "#BDBDBD",
     marginBottom: 32,
   },
   input: {
     borderBottomWidth: 1,
-    borderColor: '#E8E8E8',
+    borderColor: "#E8E8E8",
     fontSize: 16,
     marginBottom: 16,
   },
   photo: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
     borderRadius: 8,
   },
 });
